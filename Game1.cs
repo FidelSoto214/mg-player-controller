@@ -2,7 +2,6 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Movement;
 
@@ -13,15 +12,19 @@ public class Game1 : Game
 	private Rectangle player;
 	private Texture2D playerTexture;
 
-	private int xVelocity, yVelocity;
+	private int xVelocity;
 	private int xSpeed;
 	
 	// Aggregates of all acceleration forces
+	
+	private int yVelocity;
 	private int yAccelerations; 
 	private int jumpForce;
-	private KeyboardState keyboardState;
 	private int gravity;
-	private bool grounded;
+	
+	private KeyboardState keyboardState;
+	private bool isGrounded;
+	private int deltaTime;
 
 	public Game1()
 	{
@@ -46,7 +49,7 @@ public class Game1 : Game
 		jumpForce = 40;
 		gravity = 2;
 		yAccelerations = 0;
-		grounded = false;
+		isGrounded = false;
 
 		base.Initialize();
 	}
@@ -65,6 +68,8 @@ public class Game1 : Game
 			|| Keyboard.GetState().IsKeyDown(Keys.Escape))
 			Exit();
 		
+		deltaTime = (int)Math.Ceiling(gameTime.ElapsedGameTime.TotalSeconds);
+		
 		// Velocity for the next frame calculation is
 		// dependent on player input and constant forces
 		// (Y axis gravity for now, X axis drag planned)
@@ -81,19 +86,19 @@ public class Game1 : Game
 			xVelocity += xSpeed;
 		}
 		
-		if (keyboardState.IsKeyDown(Keys.Space) && grounded)
+		if (keyboardState.IsKeyDown(Keys.Space) && isGrounded)
 		{
 			yAccelerations -= jumpForce;
-			grounded = false;
+			isGrounded = false;
 		}
 		
 		yAccelerations += gravity;
-		yVelocity = yAccelerations * (int)Math.Ceiling(gameTime.ElapsedGameTime.TotalSeconds);
+		yVelocity = yAccelerations * deltaTime;
 		
 		// Position for next frame is given by 
 		// current position + velocity * delta time
-		player.X += xVelocity * (int)Math.Ceiling(gameTime.ElapsedGameTime.TotalSeconds);
-		player.Y += yVelocity * (int)Math.Ceiling(gameTime.ElapsedGameTime.TotalSeconds);
+		player.X += xVelocity * deltaTime;
+		player.Y += yVelocity * deltaTime;
 		
 		// Screen bounds check
 		if (player.Right > _graphics.PreferredBackBufferWidth)
@@ -108,7 +113,7 @@ public class Game1 : Game
 		if (player.Bottom > _graphics.PreferredBackBufferHeight)
 		{
 			player.Y = _graphics.PreferredBackBufferHeight - player.Height;
-			grounded = true;
+			isGrounded = true;
 			yVelocity = 0;
 			yAccelerations = 0;
 		}
