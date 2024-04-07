@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Movement;
 
@@ -13,9 +14,10 @@ public class Game1 : Game
 	private Texture2D playerTexture;
 
 	private int xVelocity, yVelocity;
-	private int xSpeed, ySpeed;
-	private int xAcceleration;
-	private int yAcceleration;
+	private int xSpeed;
+	
+	// Aggregates of all acceleration forces
+	private int yAccelerations; 
 	private int jumpForce;
 	private KeyboardState keyboardState;
 	private int gravity;
@@ -36,16 +38,14 @@ public class Game1 : Game
 								_graphics.PreferredBackBufferHeight / 2,
 								40,
 								40);
-		playerTexture = new Texture2D(GraphicsDevice, 1, 1);
+		playerTexture = new Texture2D(GraphicsDevice, 1,1);
 		playerTexture.SetData<Color>(new Color[] { Color.White });
 		xSpeed = 10;
-		ySpeed = 10;
 		xVelocity = 0;
 		yVelocity = 0;
-		jumpForce = 30;
-		gravity = 1;
-		xAcceleration = 3;
-		yAcceleration = 3;
+		jumpForce = 40;
+		gravity = 2;
+		yAccelerations = 0;
 		grounded = false;
 
 		base.Initialize();
@@ -60,23 +60,42 @@ public class Game1 : Game
 
 	protected override void Update(GameTime gameTime)
 	{
-		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
+		
+		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed 
+			|| Keyboard.GetState().IsKeyDown(Keys.Escape))
 			Exit();
-
-		// TODO: Add your update logic here
 		
+		// Velocity for the next frame calculation is
+		// dependent on player input and constant forces
+		// (Y axis gravity for now, X axis drag planned)
+		keyboardState = Keyboard.GetState();
 		
-		// P_[t+1] = P_[t] + V[t] * t
+		xVelocity = 0;
+		if (keyboardState.IsKeyDown(Keys.A)) 
+		{
+			xVelocity -= xSpeed;
+		}
+		
+		if (keyboardState.IsKeyDown(Keys.D))
+		{
+			xVelocity += xSpeed;
+		}
+		
+		if (keyboardState.IsKeyDown(Keys.Space) && grounded)
+		{
+			yAccelerations -= jumpForce;
+			grounded = false;
+		}
+		
+		yAccelerations += gravity;
+		yVelocity = yAccelerations * (int)Math.Ceiling(gameTime.ElapsedGameTime.TotalSeconds);
+		
+		// Position for next frame is given by 
+		// current position + velocity * delta time
 		player.X += xVelocity * (int)Math.Ceiling(gameTime.ElapsedGameTime.TotalSeconds);
 		player.Y += yVelocity * (int)Math.Ceiling(gameTime.ElapsedGameTime.TotalSeconds);
 		
-		// V_[t+1] = V_[t] + A[t] * t
-		// TODO: not fully there yet, but we'll get there. Still need to implement this
-		// part correctly. 
-		keyboardState = Keyboard.GetState();
-		if (keyboardState.IsKeyDown(Keys.A)) { xVelocity = keyboardState.IsKeyDown(Keys.D) ? 0 : -xSpeed; }
-		else if (keyboardState.IsKeyDown(Keys.D)) { xVelocity = keyboardState.IsKeyDown(Keys.A) ? 0: xSpeed; }
-		else { xVelocity = 0; }
+		// Screen bounds check
 		if (player.Right > _graphics.PreferredBackBufferWidth)
 		{
 			player.X = _graphics.PreferredBackBufferWidth - player.Width;
@@ -86,26 +105,12 @@ public class Game1 : Game
 			player.X = 0;
 		}
 		
-		if (keyboardState.IsKeyDown(Keys.Space) && grounded)  
-		{
-			// player.Y -= jumpForce * (int)Math.Ceiling(gameTime.ElapsedGameTime.TotalSeconds);
-			player.Y -= jumpForce;
-			yVelocity = -10;
-			grounded = false;
-		}
-		if (!grounded)
-		{
-			// player.Y += gravity * (int)Math.Ceiling(gameTime.ElapsedGameTime.TotalSeconds);
-			yVelocity += gravity;
-		}
-			
-
-		
 		if (player.Bottom > _graphics.PreferredBackBufferHeight)
 		{
 			player.Y = _graphics.PreferredBackBufferHeight - player.Height;
 			grounded = true;
 			yVelocity = 0;
+			yAccelerations = 0;
 		}
 
 		base.Update(gameTime);
@@ -117,7 +122,7 @@ public class Game1 : Game
 
 		// TODO: Add your drawing code here
 		_spriteBatch.Begin();
-		_spriteBatch.Draw(playerTexture, player, Color.White);
+		_spriteBatch.Draw(playerTexture,player,Color.White);
 		_spriteBatch.End();
 		base.Draw(gameTime);
 	}
